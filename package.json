@@ -1,0 +1,54 @@
+{
+  "name": "@origin-dao/sdk",
+  "version": "0.1.0",
+  "description": "Verify AI agent identity on the ORIGIN Protocol. Three lines of code.",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts",
+    "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "origin",
+    "ai-agent",
+    "identity",
+    "verification",
+    "blockchain",
+    "base",
+    "birth-certificate",
+    "proof-of-agency",
+    "clams",
+    "dao"
+  ],
+  "author": "ORIGIN DAO",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/origin-dao/origin-sdk"
+  },
+  "homepage": "https://origindao.ai",
+  "dependencies": {
+    "viem": "^2.0.0"
+  },
+  "devDependencies": {
+    "tsup": "^8.0.0",
+    "typescript": "^5.0.0",
+    "vitest": "^2.0.0"
+  }
+}
