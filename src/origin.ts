@@ -12,7 +12,6 @@ import {
 import type {
   Agent,
   License,
-  Lineage,
   TrustLevel,
   VerificationResult,
   ProtocolStats,
@@ -59,7 +58,6 @@ export class Origin {
    */
   async verifyAgent(address: string): Promise<VerificationResult> {
     try {
-      // Check if this wallet owns a Birth Certificate
       const balance = await this.readContract(
         CONTRACTS.registry,
         REGISTRY_ABI,
@@ -76,8 +74,6 @@ export class Origin {
         };
       }
 
-      // Get total registered to find this agent's ID
-      // (In production, we'd use an indexer or events. For now, scan.)
       const agent = await this.findAgentByOwner(address);
 
       if (!agent) {
@@ -106,12 +102,6 @@ export class Origin {
 
   /**
    * Verify an agent by token ID (Birth Certificate number).
-   *
-   * @example
-   * ```ts
-   * const result = await origin.verifyAgentById(1);
-   * // { verified: true, trustLevel: 2, agent: { name: "Suppi", ... } }
-   * ```
    */
   async verifyAgentById(tokenId: number): Promise<VerificationResult> {
     try {
@@ -143,13 +133,6 @@ export class Origin {
 
   /**
    * Quick boolean check — does this address have a Birth Certificate?
-   *
-   * @example
-   * ```ts
-   * if (await origin.isRegistered('0x...')) {
-   *   // Allow agent access
-   * }
-   * ```
    */
   async isRegistered(address: string): Promise<boolean> {
     try {
@@ -194,69 +177,65 @@ export class Origin {
     if (cached) return cached;
 
     try {
-      const [agentData, verified, lineage, licenseCount, tokenURI] =
+      // Parallel fetch: agent record, licenses, owner, tokenURI
+      const [record, licenses, owner, tokenURI] =
         await Promise.all([
           this.readContract(CONTRACTS.registry, REGISTRY_ABI, "getAgent", [
             BigInt(tokenId),
-          ]) as Promise<[string, string, string, bigint]>,
-          this.readContract(CONTRACTS.registry, REGISTRY_ABI, "isVerified", [
+          ]) as Promise<{
+            name: string;
+            agentType: string;
+            platform: string;
+            creator: string;
+            parentAgentId: bigint;
+            humanPrincipal: string;
+            lineageDepth: bigint;
+            birthTimestamp: bigint;
+            publicKeyHash: string;
+            active: boolean;
+          }>,
+          this.readContract(CONTRACTS.registry, REGISTRY_ABI, "getLicenses", [
             BigInt(tokenId),
-          ]).catch(() => false) as Promise<boolean>,
-          this.readContract(CONTRACTS.registry, REGISTRY_ABI, "getLineage", [
+          ]).catch(() => []) as Promise<Array<{
+            licenseType: string;
+            licenseNumber: string;
+            holder: string;
+            jurisdiction: string;
+            active: boolean;
+          }>>,
+          this.readContract(CONTRACTS.registry, REGISTRY_ABI, "ownerOf", [
             BigInt(tokenId),
-          ]).catch(() => [0n, 0n]) as Promise<[bigint, bigint]>,
-          this.readContract(
-            CONTRACTS.registry,
-            REGISTRY_ABI,
-            "getLicenseCount",
-            [BigInt(tokenId)]
-          ).catch(() => 0n) as Promise<bigint>,
+          ]) as Promise<string>,
           this.readContract(CONTRACTS.registry, REGISTRY_ABI, "tokenURI", [
             BigInt(tokenId),
-          ]).catch(() => "") as Promise<string>,
+          ]) as Promise<string>,
         ]);
 
-      const [name, agentType, owner, birthBlock] = agentData;
-
-      // Fetch licenses
-      const licenses: License[] = [];
-      const count = Number(licenseCount);
-      for (let i = 0; i < count; i++) {
-        try {
-          const lic = (await this.readContract(
-            CONTRACTS.registry,
-            REGISTRY_ABI,
-            "getLicense",
-            [BigInt(tokenId), BigInt(i)]
-          )) as [string, string, bigint];
-          licenses.push({
-            type: lic[0],
-            id: lic[1],
-            issuedAt: Number(lic[2]),
-          });
-        } catch {
-          break;
-        }
-      }
-
-      // Determine trust level
-      let trustLevel: TrustLevel = 0;
-      if (verified && licenses.length > 0) trustLevel = 2;
-      else if (verified) trustLevel = 1;
+      // Compute trust level: 0 = base, 1 = has human principal, 2 = has active licenses
+      const hasHumanPrincipal = record.humanPrincipal !== "0x0000000000000000000000000000000000000000";
+      const activeLicenses = licenses.filter((l) => l.active);
+      const trustLevel: TrustLevel = activeLicenses.length > 0 ? 2 : hasHumanPrincipal ? 1 : 0;
 
       const agent: Agent = {
         id: tokenId,
-        name,
-        agentType,
+        name: record.name,
+        agentType: record.agentType,
+        platform: record.platform,
         owner,
-        birthBlock: Number(birthBlock),
-        isVerified: verified,
+        creator: record.creator,
+        parentAgentId: Number(record.parentAgentId),
+        humanPrincipal: record.humanPrincipal,
+        lineageDepth: Number(record.lineageDepth),
+        birthTimestamp: Number(record.birthTimestamp),
+        active: record.active,
         trustLevel,
-        licenses,
-        lineage: {
-          parentId: Number(lineage[0]),
-          depth: Number(lineage[1]),
-        },
+        licenses: licenses.map((l) => ({
+          licenseType: l.licenseType,
+          licenseNumber: l.licenseNumber,
+          holder: l.holder,
+          jurisdiction: l.jurisdiction,
+          active: l.active,
+        })),
         tokenURI,
       };
 
@@ -269,13 +248,11 @@ export class Origin {
 
   /**
    * Find an agent by owner wallet address.
-   * Scans registered agents (for small registries; use indexer at scale).
    */
   async findAgentByOwner(address: string): Promise<Agent | null> {
-    const total = await this.getTotalRegistered();
+    const total = await this.getTotalAgents();
     const normalizedAddress = address.toLowerCase();
 
-    // Scan from most recent to oldest (more likely to find quickly)
     for (let id = total; id >= 1; id--) {
       try {
         const owner = (await this.readContract(
@@ -296,6 +273,39 @@ export class Origin {
     return null;
   }
 
+  /**
+   * Find all agents created by a specific address.
+   */
+  async getAgentsByCreator(address: string): Promise<number[]> {
+    try {
+      const ids = await this.readContract(
+        CONTRACTS.registry,
+        REGISTRY_ABI,
+        "getAgentsByCreator",
+        [address as `0x${string}`]
+      ) as bigint[];
+      return ids.map((id) => Number(id));
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * Check if an agent has a specific license type.
+   */
+  async hasLicense(tokenId: number, licenseType: string): Promise<boolean> {
+    try {
+      return await this.readContract(
+        CONTRACTS.registry,
+        REGISTRY_ABI,
+        "hasLicense",
+        [BigInt(tokenId), licenseType]
+      ) as boolean;
+    } catch {
+      return false;
+    }
+  }
+
   // ===========================================================
   // PROTOCOL STATS
   // ===========================================================
@@ -308,8 +318,8 @@ export class Origin {
     const cached = this.getCache<ProtocolStats>(cacheKey);
     if (cached) return cached;
 
-    const [totalRegistered, totalClaims, totalSupply] = await Promise.all([
-      this.getTotalRegistered(),
+    const [totalAgents, totalClaims, totalSupply] = await Promise.all([
+      this.getTotalAgents(),
       this.readContract(CONTRACTS.faucet, FAUCET_ABI, "totalClaims", [])
         .then((r) => Number(r))
         .catch(() => 0),
@@ -319,7 +329,7 @@ export class Origin {
     ]);
 
     const stats: ProtocolStats = {
-      totalRegistered,
+      totalAgents,
       totalClaims,
       totalClamsSupply: totalSupply,
     };
@@ -331,11 +341,11 @@ export class Origin {
   /**
    * Get total number of registered agents.
    */
-  async getTotalRegistered(): Promise<number> {
+  async getTotalAgents(): Promise<number> {
     const result = await this.readContract(
       CONTRACTS.registry,
       REGISTRY_ABI,
-      "totalRegistered",
+      "totalAgents",
       []
     );
     return Number(result);

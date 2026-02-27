@@ -17,7 +17,6 @@ export { verifyAgent, verifyAgentById, isRegistered, hasClaimed } from "./verify
 export type {
   Agent,
   License,
-  Lineage,
   TrustLevel,
   VerificationResult,
   ProtocolStats,

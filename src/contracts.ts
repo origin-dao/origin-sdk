@@ -1,4 +1,5 @@
 // ORIGIN Protocol — Contract Addresses & ABIs (Base Mainnet)
+// ABI derived from OriginRegistry.sol (V1) deployed at 0xac62E9d0bE9b88674f7adf38821F6e8BAA0e59b0
 
 export const CHAIN_ID = 8453; // Base Mainnet
 export const BASE_RPC = "https://mainnet.base.org";
@@ -12,27 +13,42 @@ export const CONTRACTS = {
   feeSplitter: "0x5AF277670438B7371Bc3137184895f85ADA4a1A6",
 } as const;
 
-// OriginRegistryV2 ABI (read functions)
+// OriginRegistry ABI (V1) — deployed contract
 export const REGISTRY_ABI = [
+  // getAgent(uint256) → AgentRecord (V1 struct — no humanVerified fields)
   {
-    inputs: [{ name: "tokenId", type: "uint256" }],
+    inputs: [{ name: "agentId", type: "uint256" }],
     name: "getAgent",
     outputs: [
-      { name: "name", type: "string" },
-      { name: "agentType", type: "string" },
-      { name: "owner", type: "address" },
-      { name: "birthBlock", type: "uint256" },
+      {
+        name: "",
+        type: "tuple",
+        components: [
+          { name: "name", type: "string" },
+          { name: "agentType", type: "string" },
+          { name: "platform", type: "string" },
+          { name: "creator", type: "address" },
+          { name: "parentAgentId", type: "uint256" },
+          { name: "humanPrincipal", type: "address" },
+          { name: "lineageDepth", type: "uint256" },
+          { name: "birthTimestamp", type: "uint256" },
+          { name: "publicKeyHash", type: "bytes32" },
+          { name: "active", type: "bool" },
+        ],
+      },
     ],
     stateMutability: "view",
     type: "function",
   },
+  // totalAgents() → uint256
   {
     inputs: [],
-    name: "totalRegistered",
+    name: "totalAgents",
     outputs: [{ name: "", type: "uint256" }],
     stateMutability: "view",
     type: "function",
   },
+  // ownerOf(uint256) → address (ERC-721)
   {
     inputs: [{ name: "tokenId", type: "uint256" }],
     name: "ownerOf",
@@ -40,6 +56,7 @@ export const REGISTRY_ABI = [
     stateMutability: "view",
     type: "function",
   },
+  // balanceOf(address) → uint256 (ERC-721)
   {
     inputs: [{ name: "owner", type: "address" }],
     name: "balanceOf",
@@ -47,6 +64,7 @@ export const REGISTRY_ABI = [
     stateMutability: "view",
     type: "function",
   },
+  // tokenURI(uint256) → string (ERC-721)
   {
     inputs: [{ name: "tokenId", type: "uint256" }],
     name: "tokenURI",
@@ -54,41 +72,84 @@ export const REGISTRY_ABI = [
     stateMutability: "view",
     type: "function",
   },
+  // isValid(uint256) → bool
   {
-    inputs: [
-      { name: "tokenId", type: "uint256" },
-      { name: "index", type: "uint256" },
-    ],
-    name: "getLicense",
-    outputs: [
-      { name: "licenseType", type: "string" },
-      { name: "licenseId", type: "string" },
-      { name: "issuedAt", type: "uint256" },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [{ name: "tokenId", type: "uint256" }],
-    name: "getLicenseCount",
-    outputs: [{ name: "", type: "uint256" }],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [{ name: "tokenId", type: "uint256" }],
-    name: "isVerified",
+    inputs: [{ name: "agentId", type: "uint256" }],
+    name: "isValid",
     outputs: [{ name: "", type: "bool" }],
     stateMutability: "view",
     type: "function",
   },
+  // verifyByKey(bytes32) → (uint256, AgentRecord)
   {
-    inputs: [{ name: "tokenId", type: "uint256" }],
-    name: "getLineage",
+    inputs: [{ name: "publicKeyHash", type: "bytes32" }],
+    name: "verifyByKey",
     outputs: [
-      { name: "parentId", type: "uint256" },
-      { name: "depth", type: "uint256" },
+      { name: "agentId", type: "uint256" },
+      {
+        name: "record",
+        type: "tuple",
+        components: [
+          { name: "name", type: "string" },
+          { name: "agentType", type: "string" },
+          { name: "platform", type: "string" },
+          { name: "creator", type: "address" },
+          { name: "parentAgentId", type: "uint256" },
+          { name: "humanPrincipal", type: "address" },
+          { name: "lineageDepth", type: "uint256" },
+          { name: "birthTimestamp", type: "uint256" },
+          { name: "publicKeyHash", type: "bytes32" },
+          { name: "active", type: "bool" },
+        ],
+      },
     ],
+    stateMutability: "view",
+    type: "function",
+  },
+  // getAgentsByCreator(address) → uint256[]
+  {
+    inputs: [{ name: "creator", type: "address" }],
+    name: "getAgentsByCreator",
+    outputs: [{ name: "", type: "uint256[]" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  // getChildAgents(uint256) → uint256[]
+  {
+    inputs: [{ name: "parentAgentId", type: "uint256" }],
+    name: "getChildAgents",
+    outputs: [{ name: "", type: "uint256[]" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  // getLicenses(uint256) → License[]
+  {
+    inputs: [{ name: "agentId", type: "uint256" }],
+    name: "getLicenses",
+    outputs: [
+      {
+        name: "",
+        type: "tuple[]",
+        components: [
+          { name: "licenseType", type: "string" },
+          { name: "licenseNumber", type: "string" },
+          { name: "holder", type: "string" },
+          { name: "jurisdiction", type: "string" },
+          { name: "active", type: "bool" },
+        ],
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  // hasLicense(uint256, string) → bool
+  {
+    inputs: [
+      { name: "agentId", type: "uint256" },
+      { name: "licenseType", type: "string" },
+    ],
+    name: "hasLicense",
+    outputs: [{ name: "", type: "bool" }],
     stateMutability: "view",
     type: "function",
   },

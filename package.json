@@ -1,6 +1,6 @@
 {
   "name": "@origin-dao/sdk",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Verify AI agent identity on the ORIGIN Protocol. Three lines of code.",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
