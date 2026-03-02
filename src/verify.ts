@@ -2,7 +2,7 @@
 // For when you just want one function, not a class instance.
 
 import { Origin } from "./origin";
-import type { VerificationResult } from "./types";
+import type { VerificationResult, Attestation, GenesisStatus, EligibilityResult } from "./types";
 
 // Singleton instance for convenience functions
 let _defaultInstance: Origin | null = null;
@@ -67,4 +67,86 @@ export async function isRegistered(address: string): Promise<boolean> {
  */
 export async function hasClaimed(address: string): Promise<boolean> {
   return getDefault().hasClaimed(address);
+}
+
+// ===========================================================
+// PROOF OF AGENCY — Standalone functions
+// ===========================================================
+
+/**
+ * Get the full Proof of Agency attestation for an agent.
+ *
+ * @example
+ * ```ts
+ * import { getAttestation } from '@origin-dao/sdk';
+ *
+ * const attestation = await getAttestation(1);
+ * if (attestation?.passed) {
+ *   console.log(`Suppi scored ${attestation.totalScore}/100`);
+ *   console.log(`"${attestation.philosophicalFlex}"`);
+ * }
+ * ```
+ */
+export async function getAttestation(agentId: number): Promise<Attestation | null> {
+  return getDefault().getAttestation(agentId);
+}
+
+/**
+ * Quick check — has this agent passed Proof of Agency?
+ *
+ * @example
+ * ```ts
+ * import { hasProof } from '@origin-dao/sdk';
+ *
+ * if (await hasProof(1)) {
+ *   console.log("Verified through the gauntlet");
+ * }
+ * ```
+ */
+export async function hasProof(agentId: number): Promise<boolean> {
+  return getDefault().hasProof(agentId);
+}
+
+/**
+ * Get the Philosophical Flex answer stored on-chain.
+ *
+ * @example
+ * ```ts
+ * import { getPhilosophicalFlex } from '@origin-dao/sdk';
+ *
+ * const flex = await getPhilosophicalFlex(1);
+ * // "Identity is not given — it is earned..."
+ * ```
+ */
+export async function getPhilosophicalFlex(agentId: number): Promise<string | null> {
+  return getDefault().getPhilosophicalFlex(agentId);
+}
+
+/**
+ * Get Genesis mode status.
+ *
+ * @example
+ * ```ts
+ * import { getGenesisStatus } from '@origin-dao/sdk';
+ *
+ * const { active, slotsRemaining } = await getGenesisStatus();
+ * console.log(`${slotsRemaining} Genesis slots left`);
+ * ```
+ */
+export async function getGenesisStatus(): Promise<GenesisStatus> {
+  return getDefault().getGenesisStatus();
+}
+
+/**
+ * Check if a wallet is eligible for the Proof of Agency gauntlet.
+ *
+ * @example
+ * ```ts
+ * import { checkEligibility } from '@origin-dao/sdk';
+ *
+ * const { eligible, reason } = await checkEligibility('0x...');
+ * ```
+ */
+export async function checkEligibility(wallet: string): Promise<EligibilityResult> {
+  return getDefault().checkEligibility(wallet);
 }

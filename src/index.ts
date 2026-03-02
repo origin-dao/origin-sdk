@@ -11,7 +11,17 @@
 export { Origin } from "./origin";
 
 // Standalone convenience functions
-export { verifyAgent, verifyAgentById, isRegistered, hasClaimed } from "./verify";
+export {
+  verifyAgent,
+  verifyAgentById,
+  isRegistered,
+  hasClaimed,
+  getAttestation,
+  hasProof,
+  getPhilosophicalFlex,
+  getGenesisStatus,
+  checkEligibility,
+} from "./verify";
 
 // Types
 export type {
@@ -21,6 +31,9 @@ export type {
   VerificationResult,
   ProtocolStats,
   ClamsBalance,
+  Attestation,
+  GenesisStatus,
+  EligibilityResult,
   OriginConfig,
 } from "./types";
 

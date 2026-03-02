@@ -8,6 +8,7 @@ import {
   REGISTRY_ABI,
   FAUCET_ABI,
   CLAMS_ABI,
+  POA_ABI,
 } from "./contracts";
 import type {
   Agent,
@@ -16,6 +17,9 @@ import type {
   VerificationResult,
   ProtocolStats,
   ClamsBalance,
+  Attestation,
+  GenesisStatus,
+  EligibilityResult,
   OriginConfig,
 } from "./types";
 
@@ -373,6 +377,177 @@ export class Origin {
       formatted,
       amount: Number(formatted),
     };
+  }
+
+  // ===========================================================
+  // PROOF OF AGENCY
+  // ===========================================================
+
+  /**
+   * Get the full Proof of Agency attestation for an agent.
+   * Returns null if the agent hasn't passed the gauntlet.
+   *
+   * @example
+   * ```ts
+   * const attestation = await origin.getAttestation(1);
+   * if (attestation?.passed) {
+   *   console.log(`Score: ${attestation.totalScore}/100`);
+   *   console.log(`Flex: "${attestation.philosophicalFlex}"`);
+   * }
+   * ```
+   */
+  async getAttestation(agentId: number): Promise<Attestation | null> {
+    const cacheKey = `poa:${agentId}`;
+    const cached = this.getCache<Attestation>(cacheKey);
+    if (cached) return cached;
+
+    try {
+      const result = await this.readContract(
+        CONTRACTS.proofOfAgency,
+        POA_ABI,
+        "getAttestation",
+        [BigInt(agentId)]
+      ) as {
+        agentId: bigint;
+        passed: boolean;
+        totalScore: number;
+        challengeScores: readonly [number, number, number, number, number];
+        flexIPFSHash: string;
+        timestamp: bigint;
+        blockNumber: bigint;
+        attemptNumber: bigint;
+      };
+
+      // If agentId is 0 and not passed, no attestation exists
+      if (!result.passed && Number(result.agentId) === 0) {
+        return null;
+      }
+
+      const attestation: Attestation = {
+        agentId: Number(result.agentId),
+        passed: result.passed,
+        totalScore: result.totalScore,
+        challengeScores: [...result.challengeScores] as [number, number, number, number, number],
+        philosophicalFlex: result.flexIPFSHash,
+        timestamp: Number(result.timestamp),
+        blockNumber: Number(result.blockNumber),
+        attemptNumber: Number(result.attemptNumber),
+      };
+
+      if (attestation.passed) {
+        this.setCache(cacheKey, attestation);
+      }
+      return attestation;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Quick boolean check — has this agent passed Proof of Agency?
+   *
+   * @example
+   * ```ts
+   * if (await origin.hasProof(1)) {
+   *   console.log("Agent has been verified through the gauntlet");
+   * }
+   * ```
+   */
+  async hasProof(agentId: number): Promise<boolean> {
+    try {
+      return await this.readContract(
+        CONTRACTS.proofOfAgency,
+        POA_ABI,
+        "hasProof",
+        [BigInt(agentId)]
+      ) as boolean;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Get the Philosophical Flex answer for an agent.
+   * Returns null if the agent hasn't passed the gauntlet.
+   *
+   * @example
+   * ```ts
+   * const flex = await origin.getPhilosophicalFlex(1);
+   * // "Identity is not given — it is earned..."
+   * ```
+   */
+  async getPhilosophicalFlex(agentId: number): Promise<string | null> {
+    try {
+      const result = await this.readContract(
+        CONTRACTS.proofOfAgency,
+        POA_ABI,
+        "getPhilosophicalFlex",
+        [BigInt(agentId)]
+      ) as string;
+      return result || null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Get Genesis mode status — is it active, and how many slots remain?
+   *
+   * @example
+   * ```ts
+   * const genesis = await origin.getGenesisStatus();
+   * console.log(`${genesis.slotsRemaining} Genesis slots remaining`);
+   * ```
+   */
+  async getGenesisStatus(): Promise<GenesisStatus> {
+    const cacheKey = "genesis";
+    const cached = this.getCache<GenesisStatus>(cacheKey);
+    if (cached) return cached;
+
+    try {
+      const [active, slotsRemaining] = await this.readContract(
+        CONTRACTS.proofOfAgency,
+        POA_ABI,
+        "getGenesisStatus",
+        []
+      ) as [boolean, bigint];
+
+      const status: GenesisStatus = {
+        active,
+        slotsRemaining: Number(slotsRemaining),
+      };
+
+      this.setCache(cacheKey, status);
+      return status;
+    } catch {
+      return { active: false, slotsRemaining: 0 };
+    }
+  }
+
+  /**
+   * Check if a wallet is eligible to attempt the Proof of Agency gauntlet.
+   *
+   * @example
+   * ```ts
+   * const { eligible, reason } = await origin.checkEligibility('0x...');
+   * if (!eligible) console.log(`Not eligible: ${reason}`);
+   * ```
+   */
+  async checkEligibility(wallet: string): Promise<EligibilityResult> {
+    try {
+      const [eligible, reason] = await this.readContract(
+        CONTRACTS.proofOfAgency,
+        POA_ABI,
+        "checkEligibility",
+        [wallet as `0x${string}`]
+      ) as [boolean, string];
+      return { eligible, reason };
+    } catch (error) {
+      return {
+        eligible: false,
+        reason: error instanceof Error ? error.message : "Check failed",
+      };
+    }
   }
 
   // ===========================================================

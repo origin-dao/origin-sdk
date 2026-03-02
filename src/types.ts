@@ -81,6 +81,42 @@ export interface ClamsBalance {
   amount: number;
 }
 
+/** Proof of Agency attestation — on-chain gauntlet results */
+export interface Attestation {
+  /** Agent ID the attestation belongs to */
+  agentId: number;
+  /** Whether the agent passed the gauntlet */
+  passed: boolean;
+  /** Total score (0-100) */
+  totalScore: number;
+  /** Individual challenge scores [adversarial, reasoning, memory, code, flex] (0-20 each) */
+  challengeScores: [number, number, number, number, number];
+  /** Philosophical Flex answer (stored on-chain) */
+  philosophicalFlex: string;
+  /** Unix timestamp of attestation */
+  timestamp: number;
+  /** Block number of attestation */
+  blockNumber: number;
+  /** Which attempt number this was */
+  attemptNumber: number;
+}
+
+/** Genesis mode status */
+export interface GenesisStatus {
+  /** Whether Genesis mode is currently active */
+  active: boolean;
+  /** Number of Genesis slots remaining (out of 100) */
+  slotsRemaining: number;
+}
+
+/** Gauntlet eligibility check result */
+export interface EligibilityResult {
+  /** Whether the wallet is eligible to attempt the gauntlet */
+  eligible: boolean;
+  /** Human-readable reason if not eligible */
+  reason: string;
+}
+
 /** SDK configuration options */
 export interface OriginConfig {
   /** Custom RPC URL for Base (defaults to public RPC) */

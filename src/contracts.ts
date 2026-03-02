@@ -6,6 +6,7 @@ export const BASE_RPC = "https://mainnet.base.org";
 
 export const CONTRACTS = {
   registry: "0xac62E9d0bE9b88674f7adf38821F6e8BAA0e59b0",
+  proofOfAgency: "0x398d6d1E04E9A7ad7Efc81a229351Ea524e1F68e",
   clamsToken: "0xd78A1F079D6b2da39457F039aD99BaF5A82c4574",
   faucet: "0x6C563A293C674321a2C52410ab37d879e099a25d",
   governance: "0xb745F43E6f896C149e3d29A9D45e86E0654f85f7",
@@ -193,6 +194,71 @@ export const CLAMS_ABI = [
     inputs: [],
     name: "decimals",
     outputs: [{ name: "", type: "uint8" }],
+    stateMutability: "view",
+    type: "function",
+  },
+] as const;
+
+// ProofOfAgency ABI (read functions)
+export const POA_ABI = [
+  // getAttestation(uint256) → Attestation struct
+  {
+    inputs: [{ name: "agentId", type: "uint256" }],
+    name: "getAttestation",
+    outputs: [
+      {
+        name: "",
+        type: "tuple",
+        components: [
+          { name: "agentId", type: "uint256" },
+          { name: "passed", type: "bool" },
+          { name: "totalScore", type: "uint8" },
+          { name: "challengeScores", type: "uint8[5]" },
+          { name: "flexIPFSHash", type: "string" },
+          { name: "timestamp", type: "uint256" },
+          { name: "blockNumber", type: "uint256" },
+          { name: "attemptNumber", type: "uint256" },
+        ],
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  // hasProof(uint256) → bool
+  {
+    inputs: [{ name: "agentId", type: "uint256" }],
+    name: "hasProof",
+    outputs: [{ name: "", type: "bool" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  // getPhilosophicalFlex(uint256) → string
+  {
+    inputs: [{ name: "agentId", type: "uint256" }],
+    name: "getPhilosophicalFlex",
+    outputs: [{ name: "", type: "string" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  // getGenesisStatus() → (bool active, uint256 slotsRemaining)
+  {
+    inputs: [],
+    name: "getGenesisStatus",
+    outputs: [
+      { name: "active", type: "bool" },
+      { name: "slotsRemaining", type: "uint256" },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  // checkEligibility(address) → (bool eligible, string reason)
+  {
+    inputs: [{ name: "wallet", type: "address" }],
+    name: "checkEligibility",
+    outputs: [
+      { name: "eligible", type: "bool" },
+      { name: "reason", type: "string" },
+    ],
     stateMutability: "view",
     type: "function",
   },
