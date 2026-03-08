@@ -33,7 +33,14 @@ export interface Agent {
   licenses: License[];
   /** Token URI (IPFS metadata/avatar) */
   tokenURI: string;
+  /** Trust grade: A+ (licensed + gauntlet passed) down to F (unverified) */
+  trustGrade: TrustGrade;
+  /** Proof of Agency attestation (null if not yet tested) */
+  attestation: Attestation | null;
 }
+
+/** Trust grade letter — computed from trust level + Proof of Agency */
+export type TrustGrade = "A+" | "A" | "B+" | "B" | "C" | "D" | "F";
 
 /** Professional license attached to a Birth Certificate */
 export interface License {

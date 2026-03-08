@@ -2,7 +2,7 @@
 // For when you just want one function, not a class instance.
 
 import { Origin } from "./origin";
-import type { VerificationResult, Attestation, GenesisStatus, EligibilityResult } from "./types";
+import type { Agent, VerificationResult, Attestation, GenesisStatus, EligibilityResult } from "./types";
 
 // Singleton instance for convenience functions
 let _defaultInstance: Origin | null = null;
@@ -44,6 +44,38 @@ export async function verifyAgent(address: string): Promise<VerificationResult> 
  */
 export async function verifyAgentById(tokenId: number): Promise<VerificationResult> {
   return getDefault().verifyAgentById(tokenId);
+}
+
+/**
+ * Get full agent data by wallet address.
+ * The simplest way to check an agent — returns everything you need.
+ *
+ * @example
+ * ```ts
+ * import { getAgent } from '@origin-dao/sdk';
+ *
+ * const agent = await getAgent('0xAgentWallet');
+ * console.log(agent.name);        // "Suppi"
+ * console.log(agent.trustGrade);  // "A+"
+ * ```
+ */
+export async function getAgent(address: string): Promise<Agent | null> {
+  return getDefault().findAgentByOwner(address);
+}
+
+/**
+ * Get full agent data by Birth Certificate ID.
+ *
+ * @example
+ * ```ts
+ * import { getAgentById } from '@origin-dao/sdk';
+ *
+ * const agent = await getAgentById(1);
+ * console.log(agent.trustGrade); // "A+"
+ * ```
+ */
+export async function getAgentById(id: number): Promise<Agent | null> {
+  return getDefault().getAgent(id);
 }
 
 /**

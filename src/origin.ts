@@ -14,6 +14,7 @@ import type {
   Agent,
   License,
   TrustLevel,
+  TrustGrade,
   VerificationResult,
   ProtocolStats,
   ClamsBalance,
@@ -220,6 +221,12 @@ export class Origin {
       const activeLicenses = licenses.filter((l) => l.active);
       const trustLevel: TrustLevel = activeLicenses.length > 0 ? 2 : hasHumanPrincipal ? 1 : 0;
 
+      // Fetch attestation for trust grade computation
+      const attestation = await this.getAttestation(tokenId);
+
+      // Compute trust grade from trust level + Proof of Agency
+      const trustGrade = this.computeTrustGrade(trustLevel, attestation);
+
       const agent: Agent = {
         id: tokenId,
         name: record.name,
@@ -241,6 +248,8 @@ export class Origin {
           active: l.active,
         })),
         tokenURI,
+        trustGrade,
+        attestation,
       };
 
       this.setCache(cacheKey, agent);
@@ -548,6 +557,36 @@ export class Origin {
         reason: error instanceof Error ? error.message : "Check failed",
       };
     }
+  }
+
+  // ===========================================================
+  // TRUST GRADE COMPUTATION
+  // ===========================================================
+
+  /**
+   * Compute trust grade from trust level and Proof of Agency attestation.
+   *
+   * A+ = Licensed (TL2) + Gauntlet passed (80+)
+   * A  = Licensed (TL2) + Gauntlet passed
+   * B+ = Has principal (TL1) + Gauntlet passed (80+)
+   * B  = Has principal (TL1) + Gauntlet passed, OR Licensed without gauntlet
+   * C  = Has principal + no gauntlet, OR base + gauntlet passed
+   * D  = Base trust level, no gauntlet
+   * F  = Inactive or failed gauntlet
+   */
+  private computeTrustGrade(trustLevel: TrustLevel, attestation: Attestation | null): TrustGrade {
+    const passed = attestation?.passed ?? false;
+    const score = attestation?.totalScore ?? 0;
+    const highScore = passed && score >= 80;
+
+    if (trustLevel === 2 && highScore) return "A+";
+    if (trustLevel === 2 && passed) return "A";
+    if (trustLevel === 1 && highScore) return "B+";
+    if ((trustLevel === 1 && passed) || (trustLevel === 2 && !passed)) return "B";
+    if ((trustLevel === 1 && !passed) || (trustLevel === 0 && passed)) return "C";
+    if (trustLevel === 0 && !passed) return "D";
+
+    return "F";
   }
 
   // ===========================================================
